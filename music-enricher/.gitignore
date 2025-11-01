@@ -2,4 +2,12 @@
 /.venv
 __pycache__/
 *.pyc
+
+# Output files
 enriched_music_data.csv
+*_analysis.csv
+*_playlist_data.csv
+*_genre_data.csv
+debug_*.csv
+logs/
+*.log
