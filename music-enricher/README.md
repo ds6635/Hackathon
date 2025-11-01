@@ -24,15 +24,23 @@ cd Hackathon/music-enricher
 7. Click on your app to view the details
 8. You'll find your Client ID and can view your Client Secret
 
-## Step 3: Create Environment File
+## Step 3: Get Discogs API Token
+1. Go to [Discogs](https://www.discogs.com/) and create an account if you don't have one
+2. Once logged in, go to [Discogs Developer Settings](https://www.discogs.com/settings/developers)
+3. Scroll down to "Generate new token"
+4. Click "Generate token"
+5. Copy your personal access token
+
+## Step 4: Create Environment File
 1. Create a new file named `.env` in the music-enricher directory
-2. Add your Spotify credentials to the file:
+2. Add your Spotify and Discogs credentials to the file:
 ```
 SPOTIFY_CLIENT_ID=your_client_id_here
 SPOTIFY_CLIENT_SECRET=your_client_secret_here
+DISCOGS_USER_TOKEN=your_discogs_token_here
 ```
 
-## Step 4: Set Up Python Environment
+## Step 5: Set Up Python Environment
 1. Create a virtual environment:
 ```bash
 # Windows
@@ -49,17 +57,28 @@ source .venv/bin/activate
 pip install spotipy discogs-client python-dotenv pandas
 ```
 
-## Step 5: Run the Test
+## Step 6: Run the Tests
 ```bash
+# Test Spotify connection
 python test_spotify.py
+
+# Test Discogs connection
+python test_discogs.py
 ```
 
-If everything is set up correctly, you should see:
+If everything is set up correctly, you should see success messages from both tests:
 ```
+# Spotify Test
 Initializing Spotify client...
 Testing API connection...
 ✅ Successfully connected to Spotify API!
 Test query returned: [song name] by [artist name]
+
+# Discogs Test
+Initializing Discogs client...
+Testing API connection...
+✅ Successfully connected to Discogs API!
+Test query returned: [release name] ([year])
 ```
 
 ## Troubleshooting
