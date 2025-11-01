@@ -69,8 +69,21 @@ def select_items(items: List[Dict], prompt: str) -> List[str]:
         print("Invalid selection.")
         return []
 
+def handle_error(func):
+    """Decorator to handle errors in CLI functions."""
+    def wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except Exception as e:
+            print(f"\nError: {str(e)}")
+            print("Please try again or choose a different option.")
+            return None
+    return wrapper
+
 def main():
+    print("\nInitializing Spotify connection...")
     analyzer = EnhancedMusicAnalyzer()
+    print("Connected successfully!")
     
     while True:
         print("\n=== Music Discovery and Playlist Management ===")

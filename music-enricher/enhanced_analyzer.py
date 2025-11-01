@@ -11,6 +11,14 @@ import re
 from discogs_search import search_discogs_release
 from metadata_sources import get_metadata_from_sources
 from retry_utils import retry_with_backoff
+from spotify_helpers import (
+    safe_get_tracks,
+    safe_get_artist_info,
+    safe_get_recommendations,
+    safe_api_call,
+    validate_tracks,
+    validate_playlist
+)
 
 class EnhancedMusicAnalyzer:
     def __init__(self):
@@ -103,26 +111,17 @@ class EnhancedMusicAnalyzer:
             pass
         return []
 
+    @safe_api_call
     def get_recommendations(self, seed_tracks: List[str], seed_artists: List[str], 
                           seed_genres: List[str], limit: int = 20) -> List[Dict]:
         """Get track recommendations based on seeds."""
-        try:
-            # Limit seeds to 5 total as per Spotify API requirements
-            tracks = seed_tracks[:2]
-            artists = seed_artists[:2]
-            genres = seed_genres[:1]
-            
-            recommendations = self.sp.recommendations(
-                seed_tracks=tracks,
-                seed_artists=artists,
-                seed_genres=genres,
-                limit=limit
-            )
-            
-            return recommendations.get('tracks', [])
-        except Exception as e:
-            print(f"Error getting recommendations: {str(e)}")
-            return []
+        return safe_get_recommendations(
+            self.sp,
+            seed_tracks=seed_tracks,
+            seed_artists=seed_artists,
+            seed_genres=seed_genres,
+            limit=limit
+        )
 
     def create_playlist(self, name: str, description: str = "") -> Optional[str]:
         """Create a new playlist and return its ID."""
@@ -151,14 +150,15 @@ class EnhancedMusicAnalyzer:
             print(f"Error adding tracks: {str(e)}")
             return False
 
+    @safe_api_call
     def merge_playlists(self, source_ids: List[str], target_id: str) -> bool:
         """Merge multiple playlists into a target playlist."""
         try:
             all_tracks = set()
             for playlist_id in source_ids:
-                results = self.sp.playlist_tracks(playlist_id)
-                track_uris = [item['track']['uri'] for item in results['items'] 
-                            if item['track'] and not item['track'].get('is_local', False)]
+                tracks = safe_get_tracks(self.sp, playlist_id)
+                track_uris = [track['uri'] for track in tracks 
+                            if not track.get('is_local', False)]
                 all_tracks.update(track_uris)
             
             return self.add_tracks_to_playlist(target_id, list(all_tracks))
@@ -208,6 +208,7 @@ class EnhancedMusicAnalyzer:
             pass
         return []
 
+    @safe_api_call
     def analyze_and_recommend(self, input_query: str, recommendation_type: str = 'track') -> Dict[str, Any]:
         """Main analysis and recommendation function."""
         results = self.search_music(input_query)
@@ -222,21 +223,22 @@ class EnhancedMusicAnalyzer:
         
         if recommendation_type == 'track' and results['tracks']:
             # Get recommendations based on the track
-            track = results['tracks'][0]
-            seed_tracks = [track['id']]
-            seed_artists = [artist['id'] for artist in track['artists'][:2]]
-            seed_genres = []
-            
-            # Get artist genres
-            for artist in track['artists'][:2]:
-                artist_info = self.sp.artist(artist['id'])
-                seed_genres.extend(artist_info.get('genres', [])[:2])
-            
-            recommendations['recommendations'] = self.get_recommendations(
-                seed_tracks=seed_tracks,
-                seed_artists=seed_artists,
-                seed_genres=seed_genres
-            )
+            track = validate_tracks(results['tracks'])[0]
+            if track:
+                seed_tracks = [track['id']]
+                seed_artists = [artist['id'] for artist in track['artists'][:2]]
+                seed_genres = []
+                
+                # Get artist genres
+                for artist in track['artists'][:2]:
+                    artist_info = safe_get_artist_info(self.sp, artist['id'])
+                    seed_genres.extend(artist_info.get('genres', [])[:2])
+                
+                recommendations['recommendations'] = self.get_recommendations(
+                    seed_tracks=seed_tracks,
+                    seed_artists=seed_artists,
+                    seed_genres=seed_genres
+                )
             
         elif recommendation_type == 'artist' and results['artists']:
             # Get artist's history and top tracks
