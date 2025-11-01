@@ -1,5 +1,5 @@
 import sys
-from analyze_playlist import get_playlist_id
+from analyze_playlist import get_playlist_id, split_artists
 import utils
 import pandas as pd
 import time
@@ -23,11 +23,18 @@ def process_playlist(playlist_input):
     tracks_data = []
     total_tracks = len(results['items'])
 
+    _prev_len = 0
+    def print_progress(msg: str):
+        nonlocal _prev_len
+        sys.stdout.write('\r' + msg + ' ' * max(0, _prev_len - len(msg)))
+        sys.stdout.flush()
+        _prev_len = len(msg)
+
     for idx, item in enumerate(results['items'], 1):
         if not item['track']:
             continue
         track = item['track']
-        print(f"\rProcessing {idx}/{total_tracks}: {track.get('name')}", end='')
+        print_progress(f"Processing {idx}/{total_tracks}: {track.get('name')}")
 
         # Use code path from analyze_playlist: build minimal record and attempt to fetch genres
         is_local = track.get('is_local', False)

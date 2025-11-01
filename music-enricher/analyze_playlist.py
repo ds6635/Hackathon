@@ -1,6 +1,7 @@
 import utils
 import pandas as pd
 import re
+import sys
 from datetime import datetime
 import time
 from collections import Counter
@@ -120,12 +121,21 @@ def analyze_playlist():
         tracks_data = []
         total_tracks = len(results['items'])
         
+        # helper to print progress and clear previous text
+        _prev_len = 0
+        def print_progress(msg: str):
+            nonlocal _prev_len
+            # overwrite previous line content by padding with spaces
+            sys.stdout.write('\r' + msg + ' ' * max(0, _prev_len - len(msg)))
+            sys.stdout.flush()
+            _prev_len = len(msg)
+
         for idx, item in enumerate(results['items'], 1):
             if not item['track']:
                 continue
                 
             track = item['track']
-            print(f"\rProcessing track {idx}/{total_tracks}: {track['name']}", end='')
+            print_progress(f"Processing track {idx}/{total_tracks}: {track.get('name')}")
             
             try:
                 # Prepare defaults
@@ -274,37 +284,39 @@ def analyze_playlist():
             # Respect rate limits; local tracks don't need external calls, so shorter sleep
             time.sleep(0.5)
         
+        # finalize progress line
+        print()
         print("\n\nAnalysis complete! Generating report...")
-        
+
         # Convert to DataFrame
         df = pd.DataFrame(tracks_data)
-        
+
         # Generate insights
         print("\n=== Playlist Analysis Report ===")
         print(f"\nTotal Tracks: {len(df)}")
         print(f"Unique Artists: {df['artist_name'].nunique()}")
         print(f"Unique Albums: {df['album_name'].nunique()}")
-        
+
         print("\nTop 10 Artists by Number of Tracks:")
         print(df['artist_name'].value_counts().head(10))
-        
+
         print("\nRelease Year Distribution:")
         print(df['release_year'].value_counts().sort_index())
-        
+
         print("\nMost Common Genres:")
         all_genres = [g for genres in df['all_genres'] for g in genres]
         for genre, count in Counter(all_genres).most_common(15):
             print(f"{genre}: {count} tracks")
-        
+
         print("\nAverage Track Popularity:", df['popularity'].mean())
-        
+
         # Save detailed analysis to CSV
         output_file = "playlist_analysis.csv"
         df.to_csv(output_file, index=False)
         print(f"\nDetailed analysis saved to {output_file}")
-        
+
         return df
-        
+
     except Exception as e:
         print(f"Error during analysis: {str(e)}")
 
