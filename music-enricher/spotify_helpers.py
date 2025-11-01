@@ -80,36 +80,56 @@ def safe_get_recommendations(sp, seed_tracks: List[str],
         if not any([seed_tracks, seed_artists, seed_genres]):
             return []
             
-        # Limit seeds to Spotify API maximums
-        params = {
-            'limit': min(limit, 100)  # Spotify maximum
-        }
+        # Try different seed combinations in order of preference
+        seed_combinations = [
+            # First try with all seed types
+            {
+                'seed_tracks': seed_tracks[:2] if seed_tracks else None,
+                'seed_artists': seed_artists[:2] if seed_artists else None,
+                'seed_genres': seed_genres[:1] if seed_genres else None
+            },
+            # Then try just tracks and artists
+            {
+                'seed_tracks': seed_tracks[:3] if seed_tracks else None,
+                'seed_artists': seed_artists[:2] if seed_artists else None
+            },
+            # Then just artists and genres
+            {
+                'seed_artists': seed_artists[:3] if seed_artists else None,
+                'seed_genres': seed_genres[:2] if seed_genres else None
+            },
+            # Finally try single seed type with more seeds
+            {
+                'seed_tracks': seed_tracks[:5] if seed_tracks else None
+            },
+            {
+                'seed_artists': seed_artists[:5] if seed_artists else None
+            },
+            {
+                'seed_genres': seed_genres[:5] if seed_genres else None
+            }
+        ]
         
-        if seed_tracks:
-            params['seed_tracks'] = ','.join(seed_tracks[:5])
-        if seed_artists:
-            params['seed_artists'] = ','.join(seed_artists[:5])
-        if seed_genres:
-            params['seed_genres'] = ','.join(seed_genres[:5])
-            
-        recommendations = sp.recommendations(**params)
-        if recommendations and 'tracks' in recommendations:
-            return validate_tracks(recommendations['tracks'])
-            
+        for seeds in seed_combinations:
+            try:
+                # Remove None values and ensure we have at least one seed
+                params = {k: ','.join(v) for k, v in seeds.items() if v}
+                if not params:
+                    continue
+                    
+                params['limit'] = min(limit, 100)
+                recommendations = sp.recommendations(**params)
+                
+                if recommendations and 'tracks' in recommendations:
+                    tracks = validate_tracks(recommendations['tracks'])
+                    if tracks:
+                        return tracks
+            except Exception:
+                continue
+                
     except Exception as e:
         print(f"Error getting recommendations: {str(e)}")
-        
-        # Try alternate approach with fewer seeds
-        try:
-            if seed_tracks:
-                return sp.recommendations(seed_tracks=[seed_tracks[0]], limit=limit)['tracks']
-            elif seed_artists:
-                return sp.recommendations(seed_artists=[seed_artists[0]], limit=limit)['tracks']
-            elif seed_genres:
-                return sp.recommendations(seed_genres=[seed_genres[0]], limit=limit)['tracks']
-        except Exception:
-            pass
-            
+    
     return []
 
 def safe_api_call(func):
