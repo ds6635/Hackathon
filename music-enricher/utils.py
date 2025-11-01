@@ -19,13 +19,15 @@ def init_spotify_client():
     """Initializes and returns an authenticated Spotipy client."""
     if not SPOTIFY_CLIENT_ID or not SPOTIFY_CLIENT_SECRET:
         raise ValueError("Spotify credentials not found in .env")
-        
-    sp = spotipy.Spotify(
-        auth_manager=SpotifyClientCredentials(
-            client_id=SPOTIFY_CLIENT_ID,
-            client_secret=SPOTIFY_CLIENT_SECRET
-        )
+    
+    # Using Client Credentials Flow - no user authentication needed
+    auth_manager = SpotifyClientCredentials(
+        client_id=SPOTIFY_CLIENT_ID,
+        client_secret=SPOTIFY_CLIENT_SECRET
     )
+    
+    # Create client with automatic token handling
+    sp = spotipy.Spotify(auth_manager=auth_manager)
     return sp
 
 def init_discogs_client():
