@@ -1,0 +1,5 @@
+.env
+/.venv
+__pycache__/
+*.pyc
+enriched_music_data.csv
