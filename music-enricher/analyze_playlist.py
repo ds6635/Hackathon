@@ -4,14 +4,72 @@ from datetime import datetime
 import time
 from collections import Counter
 
-def analyze_specific_playlist():
+def get_playlist_id(user_input):
+    """Extract playlist ID from various input formats"""
+    if 'open.spotify.com' in user_input:
+        # Handle full URLs
+        return user_input.split('playlist/')[-1].split('?')[0].strip()
+    elif 'spotify:playlist:' in user_input:
+        # Handle Spotify URI
+        return user_input.split(':')[-1].strip()
+    else:
+        # Assume it's already an ID
+        return user_input.strip()
+
+def get_playlist_choice():
+    """Get playlist selection from user"""
+    print("\nHow would you like to select a playlist?")
+    print("1. List my playlists")
+    print("2. Enter playlist URL/ID")
+    choice = input("Enter your choice (1 or 2): ").strip()
+    
+    sp = utils.init_spotify_client(scope='playlist-read-private playlist-read-collaborative user-library-read')
+    
+    if choice == "1":
+        # List user's playlists
+        results = sp.current_user_playlists()
+        print("\nYour playlists:")
+        for idx, playlist in enumerate(results['items'], 1):
+            print(f"{idx}. {playlist['name']} ({playlist['tracks']['total']} tracks)")
+            print(f"   ID: {playlist['id']}")
+        
+        while True:
+            try:
+                playlist_num = int(input("\nEnter the number of the playlist you want to analyze: "))
+                if 1 <= playlist_num <= len(results['items']):
+                    return results['items'][playlist_num-1]['id']
+                else:
+                    print("Invalid number. Please try again.")
+            except ValueError:
+                print("Please enter a valid number.")
+    
+    else:
+        # Get playlist URL or ID from user
+        print("\nYou can enter:")
+        print("- Spotify playlist URL (https://open.spotify.com/playlist/...)")
+        print("- Spotify URI (spotify:playlist:...)")
+        print("- Playlist ID")
+        user_input = input("Enter playlist URL or ID: ").strip()
+        return get_playlist_id(user_input)
+
+def analyze_playlist():
     try:
         # Initialize clients
         sp = utils.init_spotify_client(scope='playlist-read-private playlist-read-collaborative user-library-read')
         discogs = utils.init_discogs_client()
         
-        # Papi playlist ID
-        playlist_id = "2UowQCCzkcp29WvwnptAiM"
+        # Get playlist choice from user
+        playlist_id = get_playlist_choice()
+        
+        # Verify playlist access
+        try:
+            playlist_info = sp.playlist(playlist_id)
+            print(f"\nAnalyzing playlist: {playlist_info['name']}")
+            print(f"Created by: {playlist_info['owner']['display_name']}")
+            print(f"Total tracks: {playlist_info['tracks']['total']}")
+        except Exception as e:
+            print(f"Error accessing playlist: {str(e)}")
+            return
         
         print("Starting playlist analysis...")
         print("(This might take a while due to the large number of tracks)")
@@ -110,4 +168,6 @@ def analyze_specific_playlist():
         print(f"Error during analysis: {str(e)}")
 
 if __name__ == "__main__":
-    analyze_specific_playlist()
+    print("Welcome to the Spotify Playlist Analyzer!")
+    print("This tool will analyze a playlist and provide detailed insights about its content.")
+    analyze_playlist()
