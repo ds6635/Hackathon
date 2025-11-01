@@ -55,43 +55,38 @@ def process_playlist(playlist_input):
             except Exception:
                 continue
 
-        # Discogs test: try album then track
+        # Try Discogs first, then fall back to other sources
         album_name = track.get('album', {}).get('name') if track.get('album') else None
         discogs_genres = []
         discogs_styles = []
         try:
-            search_album = album_name or track.get('name') or ''
-            found = False
-            for a_name in (artist_names or []):
-                if not a_name:
-                    continue
-                try:
-                    results = discogs.search(search_album, artist=a_name, type='release')
-                    if results and results.page(1):
-                        rel = results.page(1)[0]
-                        discogs_genres = rel.genres if hasattr(rel, 'genres') else []
-                        discogs_styles = rel.styles if hasattr(rel, 'styles') else []
-                        found = True
-                        break
-                except Exception:
-                    continue
-            if not found:
-                search_track = track.get('name') or ''
-                for a_name in (artist_names or []):
-                    if not a_name:
-                        continue
-                    try:
-                        results = discogs.search(search_track, artist=a_name, type='release')
-                        if results and results.page(1):
-                            rel = results.page(1)[0]
-                            discogs_genres = rel.genres if hasattr(rel, 'genres') else []
-                            discogs_styles = rel.styles if hasattr(rel, 'styles') else []
-                            found = True
-                            break
-                    except Exception:
-                        continue
-        except Exception:
-            pass
+            from discogs_search import search_discogs_release
+            discogs_genres, discogs_styles = search_discogs_release(
+                client=discogs,
+                track_name=track.get('name', ''),
+                artist_name=artist_names[0] if artist_names else '',
+                album_name=album_name,
+                threshold=0.8
+            )
+            
+            # If Discogs search failed, try additional sources
+            if not discogs_genres and not discogs_styles:
+                from metadata_sources import get_metadata_from_sources
+                extra_genres, extra_styles = get_metadata_from_sources(
+                    track_name=track.get('name', ''),
+                    artist_name=artist_names[0] if artist_names else '',
+                    album_name=album_name
+                )
+                discogs_genres.extend(extra_genres)
+                discogs_styles.extend(extra_styles)
+                # Deduplicate
+                discogs_genres = list(dict.fromkeys(discogs_genres))
+                discogs_styles = list(dict.fromkeys(discogs_styles))
+                
+        except Exception as e:
+            print(f"\nMetadata search error: {str(e)}")
+            discogs_genres = []
+            discogs_styles = []
 
         record = {
             'track_name': track.get('name'),
